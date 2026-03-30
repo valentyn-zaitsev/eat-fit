@@ -1,66 +1,176 @@
-# Eat&Fit v1.0.0
+# Eat&Fit
 
-Eat&Fit is a calorie and macro tracking web application. It provides a personal product database, reusable recipes, daily meal logging with adjustable portions, and calorie & macro target tracking with live progress bars. All data is stored locally in the browser using SQLite. The app is built as a Progressive Web App (PWA), so it can be installed on any device — phone, tablet, or desktop — directly from the browser.
+A personal calorie & macro tracking app for iPhone built with **React Native + Expo (SDK 54)**.
 
----
-
-## Approach
-
-The app follows an offline-first architecture. All data lives in a local SQLite database (via WebAssembly) and works without any server or internet connection. Multi-device synchronization is available as an optional feature through Firebase Firestore, using a shared room code to link devices — no registration or login required.
-
-The UI is built with React Native (Expo) targeting web, using Material Design components (react-native-paper). Navigation is handled by expo-router with a tab-based layout.
+## Core Concept
+Users build their own product database by scanning nutrition labels (OCR). They then create "Recipe Profiles" (e.g. "Daily Lunch") where they only input the weight of each ingredient to get instant macro calculations.
 
 ---
 
-## Features
+## Tech Stack
 
-### Daily Meal Tracking
+| Layer | Technology |
+|-------|-----------|
+| Framework | React Native + Expo SDK 54 (Managed Workflow) |
+| Routing | expo-router v6 (file-based) |
+| Database | expo-sqlite v16 (`SQLiteProvider` + `useSQLiteContext`) |
+| UI | React Native Paper v5 (Material Design 3) |
+| Camera/OCR | expo-camera v17 (OCR integration pending) |
+| Icons | @expo/vector-icons v15 (MaterialCommunityIcons) |
+| Language | TypeScript |
 
-A date-navigable daily view for logging meals. Meals can be added from saved products, recipes, or entered as a quick meal with custom macro values.
+---
 
-- Date navigation to browse any day
-- Add meals from products, recipes, or enter custom macros directly
-- Adjustable portion slider (0–100%) with live gram calculation
-- Tap any logged meal to edit ingredient weights or remove it
+## Project Structure
 
-### Calorie & Macro Targets
+```
+eat-and-fit/
+├── app/                        # expo-router screens
+│   ├── _layout.tsx             # Root layout: SQLiteProvider + PaperProvider
+│   ├── +not-found.tsx          # 404 fallback screen
+│   ├── add-product.tsx         # Add/edit product screen
+│   ├── scanner.tsx             # Camera OCR screen (placeholder)
+│   ├── (tabs)/
+│   │   ├── _layout.tsx         # Bottom tab bar layout
+│   │   ├── index.tsx           # Products list screen
+│   │   └── recipes.tsx         # Recipes list screen
+│   └── recipe/
+│       └── [id].tsx            # Recipe detail + ingredient builder
+├── src/
+│   ├── db/
+│   │   ├── database.ts         # SQLite schema + initDatabase()
+│   │   ├── DbContext.tsx       # React context to share db instance
+│   │   ├── productRepository.ts
+│   │   └── recipeRepository.ts
+│   ├── models/
+│   │   ├── Product.ts          # Product interface + calculateMacros() + sumMacros()
+│   │   └── Recipe.ts           # Recipe + RecipeIngredient interfaces
+│   ├── components/
+│   │   └── MacroCard.tsx       # Reusable macro summary card (cal/protein/fat/carbs)
+│   └── hooks/
+│       └── useDatabase.ts      # Stub hook (DB is initialized in root layout)
+├── assets/                     # icon.png, splash.png, adaptive-icon.png, favicon.png
+├── app.json                    # Expo config (scheme: "eatandfit", SDK 54)
+├── package.json
+└── tsconfig.json
+```
 
-Configurable daily goals for calories, protein, fat, and carbs. Progress bars update in real time as meals are logged. A built-in auto-distribution splits a calorie target into macros using a 30/25/45 (protein/fat/carbs) ratio.
+---
 
-- Color-coded progress bars for Calories, Protein, Fat, and Carbs
-- Eaten / target display with remaining or overflow indicators
-- Over-target state highlighted in red
-- Individual macro editing — carbs auto-recalculate from remaining calories
+## Data Models
 
-### Product Database
+### Product (per 100g)
+```typescript
+{ id, name, calories, protein, fat, carbs, created_at }
+```
 
-A local library of food products with per-100g nutritional values. Products can be searched, created, edited, and deleted. When device sync is enabled, product changes propagate to connected devices automatically.
+### Recipe
+```typescript
+{ id, name, created_at }
+```
 
-- Per-100g values: Calories, Protein, Fat, Carbs
-- Search and filter
-- European decimal format support (comma & dot)
+### RecipeIngredient
+```typescript
+{ id, recipe_id, product_id, ingredient_weight }
+// Joined query also returns: product_name, calories, protein, fat, carbs
+```
 
-### Recipes
+---
 
-Reusable recipe templates with a list of ingredients and their weights. When logging a recipe as a meal, each ingredient weight can be adjusted individually — macros recalculate live based on the actual weights.
+## Key Architecture Decisions
 
-- Recipes with multiple ingredients
-- Per-100g and total macro breakdown
-- Drag-to-reorder ingredients
-- Option to update the source recipe when saving adjusted weights
+### SQLite (expo-sqlite v16)
+- **`SQLiteProvider`** wraps the entire app in `app/_layout.tsx`
+- **`useSQLiteContext()`** is called in `DbBridge` component and passed via `DbContext`
+- All screens call `useDb()` to get the db instance
+- All repository functions accept `db` as first parameter
+- ⚠️ Do NOT use `SQLite.openDatabaseSync()` at module level — this crashes in SDK 54
 
-### Multi-Device Sync
+### Database initialization
+`initDatabase(db)` in `src/db/database.ts` runs `CREATE TABLE IF NOT EXISTS` for all 3 tables. It's passed to `SQLiteProvider` as the `onInit` callback with `useSuspense` enabled.
 
-Devices can be linked using a shared room code. Products and recipes synchronize in real time through Firebase Firestore.
+### Routing
+- `app/(tabs)/index.tsx` → Products tab
+- `app/(tabs)/recipes.tsx` → Recipes tab
+- `app/add-product.tsx` → pushed from Products FAB
+- `app/scanner.tsx` → pushed from Add Product screen
+- `app/recipe/[id].tsx` → pushed from Recipes list
 
-- Room-based device pairing via a code word
-- Real-time bidirectional sync
-- Bulk upload of all local data to a room
+---
 
-### Backup & Restore
+## Implemented Features
 
-Full database export to a JSON file and import from a backup. Import is non-destructive — only entries that don't already exist are added.
+- ✅ **Products list** with search
+- ✅ **Add Product** form (name + macros per 100g) with live preview card
+- ✅ **Recipe list** with create dialog
+- ✅ **Recipe Builder** — add ingredients by searching products, input weight, shows total macros
+- ✅ **Macro calculation** — `calculateMacros(product, weightGrams)` scales from per-100g values
+- ✅ **MacroCard** component — color-coded cal/protein/fat/carbs display
+- ✅ **SQLite persistence** — all data survives app restarts
+- ⏳ **OCR Scanner** — camera opens, capture works, but OCR parsing is a placeholder
 
-- JSON export/import
-- Merge-based import (no data overwrite)
-- Share via native share sheet or browser download
+---
+
+## OCR — Next Step
+
+The scanner screen (`app/scanner.tsx`) opens the camera and captures a photo but does NOT yet perform real OCR. The next implementation step is:
+
+1. Install `react-native-vision-camera` + `vision-camera-plugin-frame-processor`
+2. Add ML Kit text recognition
+3. Pass recognized text through `parseMacrosFromText()` regex (already written in `scanner.tsx`)
+4. Auto-fill the Add Product form with parsed values
+
+---
+
+## How to Run (Development)
+
+### Prerequisites
+- Node.js v20+ installed
+- **Expo Go** app installed on iPhone (App Store)
+- iPhone and PC on the **same Wi-Fi network**
+- Windows Firewall rule allowing port 8081 inbound:
+  ```
+  netsh advfirewall firewall add rule name="Expo" dir=in action=allow protocol=TCP localport=8081
+  ```
+  *(run in Command Prompt as Administrator)*
+
+### Start
+```bash
+cd C:\Work\M\eat-and-fit
+npx expo start
+```
+
+Scan the QR code shown in the terminal with your iPhone Camera app. It will open in Expo Go.
+
+### If connection times out (router AP isolation)
+Use tunnel mode:
+```bash
+npx expo start --tunnel
+```
+This uses ngrok to bypass local network restrictions. Requires internet access.
+
+---
+
+## Known Issues / Gotchas
+
+| Issue | Status | Notes |
+|-------|--------|-------|
+| OCR not implemented | ⏳ Pending | Placeholder in scanner.tsx |
+| react@19.2.x causes renderer mismatch | ✅ Fixed | Pinned to react@19.1.0 |
+| expo-sqlite module-level init crashes | ✅ Fixed | Now uses SQLiteProvider |
+| Missing assets crash Metro | ✅ Fixed | assets/ folder populated |
+| Router AP isolation | ⚠️ Env issue | Use `--tunnel` if needed |
+
+---
+
+## Dependencies (key)
+
+```json
+"expo": "^54.0.0",
+"expo-router": "~6.0.23",
+"expo-sqlite": "~16.0.10",
+"expo-camera": "~17.0.10",
+"react-native-paper": "^5.12.3",
+"react": "19.1.0",
+"react-native": "^0.81.5"
+```
