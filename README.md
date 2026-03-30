@@ -23,6 +23,12 @@ A date-navigable daily view for logging meals. Meals can be added from saved pro
 - Adjustable portion slider (0–100%) with live gram calculation
 - Tap any logged meal to edit ingredient weights or remove it
 
+<p align="center">
+  <img src="./assets/IMG_9254.jpeg" width="32%" alt="Daily tab" />
+  <img src="./assets/IMG_9237.jpeg" width="32%" alt="Recipe" />
+  <img src="./assets/IMG_9230.jpeg" width="32%" alt="Products" />
+</p>
+
 ### Calorie & Macro Targets
 
 Configurable daily goals for calories, protein, fat, and carbs. Progress bars update in real time as meals are logged. A built-in auto-distribution splits a calorie target into macros using a 30/25/45 (protein/fat/carbs) ratio.
