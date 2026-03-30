@@ -1,0 +1,55 @@
+/**
+ * Generates PWA icons as PNG files from an inline SVG.
+ * Run: node scripts/generate-icons.js
+ *
+ * Uses only Node built-ins (no sharp/canvas needed) by writing
+ * a tiny HTML that renders the SVG to canvas and saves PNGs.
+ * 
+ * For simplicity we create SVG files directly that browsers can use.
+ */
+
+const fs = require('fs');
+const path = require('path');
+
+const publicDir = path.join(__dirname, '..', 'public');
+
+// Simple SVG icon: green circle with a fork/knife silhouette and "MT" text
+// Represents a calorie/macro tracking app
+const makeSvg = (size) => `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#66BB6A"/>
+      <stop offset="100%" style="stop-color:#43A047"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="96" fill="url(#bg)"/>
+  <!-- Fork -->
+  <g fill="#fff">
+    <rect x="140" y="100" width="12" height="180" rx="6"/>
+    <rect x="165" y="100" width="12" height="120" rx="6"/>
+    <rect x="115" y="100" width="12" height="120" rx="6"/>
+    <rect x="112" y="210" width="68" height="16" rx="8"/>
+    <rect x="140" y="280" width="12" height="140" rx="6"/>
+  </g>
+  <!-- Plate circle -->
+  <circle cx="310" cy="260" r="120" fill="none" stroke="#fff" stroke-width="14" opacity="0.9"/>
+  <circle cx="310" cy="260" r="90" fill="none" stroke="#fff" stroke-width="6" opacity="0.4"/>
+  <!-- Kcal text -->
+  <text x="310" y="250" font-family="Arial,Helvetica,sans-serif" font-size="52" font-weight="bold" fill="#fff" text-anchor="middle">kcal</text>
+  <text x="310" y="300" font-family="Arial,Helvetica,sans-serif" font-size="30" fill="#fff" text-anchor="middle" opacity="0.85">tracker</text>
+</svg>`;
+
+const sizes = [192, 512];
+
+for (const size of sizes) {
+  const filePath = path.join(publicDir, `icon-${size}.svg`);
+  fs.writeFileSync(filePath, makeSvg(size), 'utf8');
+  console.log(`Created ${filePath}`);
+}
+
+// Also create a favicon
+const faviconSvg = makeSvg(32);
+fs.writeFileSync(path.join(publicDir, 'favicon.svg'), faviconSvg, 'utf8');
+console.log('Created favicon.svg');
+
+console.log('\nDone! SVG icons created in public/');
